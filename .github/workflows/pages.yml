@@ -28,11 +28,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for n in 00 01 02 03 04 05 06 07 08; do
-            test -s "site-source.part-${n}"
-          done
-          cat site-source.part-00 site-source.part-01 site-source.part-02 site-source.part-03 site-source.part-04 site-source.part-05 site-source.part-06 site-source.part-07 site-source.part-08 > site-source.b64
+          test -s site-source.part-00
+          test -s site-source.part-01
+          for f in site-source.repair-02a site-source.repair-02b site-source.repair-02c site-source.repair-03a site-source.repair-03b site-source.repair-03c site-source.repair-04a site-source.repair-04b site-source.repair-04c; do test -s "$f"; done
+          for n in 05 06 07 08; do test -s "site-source.part-${n}"; done
+
+          cat \
+            site-source.part-00 \
+            site-source.part-01 \
+            site-source.repair-02a site-source.repair-02b site-source.repair-02c \
+            site-source.repair-03a site-source.repair-03b site-source.repair-03c \
+            site-source.repair-04a site-source.repair-04b site-source.repair-04c \
+            site-source.part-05 site-source.part-06 site-source.part-07 site-source.part-08 \
+            > site-source.b64
+
+          echo "b7557f8a473b070116a791b9977e5ee8e010efc5fe959fb29020992ccb99fa62  site-source.b64" | sha256sum -c -
           base64 --decode site-source.b64 > site-source.zip
+          echo "2a160a217da58386fbe6276d162982c77217d409006504a43d13f705355a2ed8  site-source.zip" | sha256sum -c -
+
           rm -rf _site
           mkdir -p _site
           unzip -q site-source.zip -d _site
