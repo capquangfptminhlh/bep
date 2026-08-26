@@ -57,10 +57,10 @@ jobs:
       - name: Apply real photography and typography
         run: python tools/apply_visuals.py
 
-      - name: Apply verified company information
+      - name: Apply exact bepaau.com.vn contact information
         run: python tools/apply_company_info.py
 
-      - name: Verify production preview content
+      - name: Verify preview content
         shell: bash
         run: |
           set -euo pipefail
@@ -69,26 +69,36 @@ jobs:
           pages = list(Path('_site').glob('*.html'))
           assert len(pages) >= 10, f'expected >=10 HTML pages, got {len(pages)}'
           html = '\n'.join(p.read_text(encoding='utf-8') for p in pages)
+
           required = [
-            'CÔNG TY CỔ PHẦN THIẾT BỊ Á ÂU',
-            '0106163396',
-            'info@bepaau.com.vn',
-            'Thôn 7, Đình Vĩ, xã Hoài Đức, Hà Nội',
-            'LK24 Khu đô thị Nam La Khê, phường Hà Đông, Hà Nội',
-            '0961 048 405',
-            '0962 554 955',
-            '46B, Đường Số 6, Phường Tân Sơn Nhì, TP.Hồ Chí Minh',
-            '028 22 404 999',
-            '0904 603 688',
+            'Bếp Á - Âu',
+            '0340890521',
+            'cylamthuanphat@gmail.com',
+            '43 đường số 6, cư xá Chu Văn An, Bình Thạnh, TP HCM',
+            '393/2G Nguyễn Xí, P13, Quận Bình Thạnh, TP HCM',
+            '093.307.8500',
+            '8:00 - 20:30, thứ 2 đến thứ 7',
+            'Chủ nhật nghỉ',
             'verified-company-schema',
           ]
           for value in required:
-              assert value in html, f'missing required company data: {value}'
+              assert value in html, f'missing exact bepaau.com.vn data: {value}'
+
+          forbidden = [
+            '0106163396', 'info@bepaau.com.vn',
+            'Thôn 7, Đình Vĩ, xã Hoài Đức, Hà Nội',
+            'LK24 Khu đô thị Nam La Khê, phường Hà Đông, Hà Nội',
+            '0961 048 405', '0962 554 955', '028 22 404 999', '0904 603 688',
+            '46B, Đường Số 6, Phường Tân Sơn Nhì, TP.Hồ Chí Minh',
+          ]
+          for value in forbidden:
+              assert value not in html, f'old incorrect data still present: {value}'
+
           assert html.count('images.pexels.com') >= 20
           assert html.count('commons.wikimedia.org') >= 1
           assert 'images.unsplash.com' not in html
           print('Pages:', len(pages))
-          print('Verified company information and visual assets: PASS')
+          print('Exact bepaau.com.vn contact information: PASS')
           PY
 
       - name: Setup Pages
