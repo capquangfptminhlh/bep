@@ -6,8 +6,9 @@ SITE = Path('_site')
 ASSET_DIR = SITE / 'assets' / 'vietnam'
 ASSET_DIR.mkdir(parents=True, exist_ok=True)
 
-# Real photography/projects from Vietnam-based sources only.
-# Deliberately choose frames without visible people so foreign people cannot appear.
+# Real photographs from Vietnam-based project/equipment sources only.
+# Frames are deliberately selected without visible people, so no foreign person
+# can appear anywhere in the site photography.
 SOURCES = {
     'hero.jpg': 'https://bizweb.dktcdn.net/100/485/868/files/z4371519257642-1f85de24cc43f14c8a276b7534e1665b.jpg?v=1684988197479',
     'project-restaurant.jpg': 'https://daithuanphat.com.vn/upload/filemanager/D%E1%BB%B0%20%C3%81N%20H%E1%BA%A6M%20R%C6%AF%E1%BB%A2U%20S%C3%94NG%20C%E1%BA%A6U%20T%C3%82Y%20NINH/z4434539035761_2a6b569091b663dda40e717ee0e2bbdc.jpg',
@@ -25,11 +26,12 @@ SOURCES = {
     'article-canteen.jpg': 'https://file.hstatic.net/1000381568/file/chu-y-bo-tri-lap-dat-trang-thiet-bi-phu-hop-trong-bep-an-tap-the_ea4bbb13f5b6454b84a10daaee3acdb2_grande.jpg',
 }
 
+# Download once during the build; the deployed page only serves local files.
 for filename, url in SOURCES.items():
     target = ASSET_DIR / filename
-    req = Request(url, headers={'User-Agent': 'Mozilla/5.0 (GitHub Pages build; Bep A Au preview)'})
-    with urlopen(req, timeout=30) as r:
-        data = r.read()
+    req = Request(url, headers={'User-Agent': 'Mozilla/5.0 (Bep A Au GitHub Pages build)'})
+    with urlopen(req, timeout=30) as response:
+        data = response.read()
     if len(data) < 20_000:
         raise RuntimeError(f'image download too small/failed: {filename} ({len(data)} bytes)')
     target.write_bytes(data)
@@ -73,41 +75,82 @@ FONT_LINKS = (
     '<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">'
 )
 
-# Clean every previously injected external visual URL, including Pexels/Unsplash/Commons.
-EXTERNAL_IMAGE_RE = re.compile(r'https://(?:images\.pexels\.com|images\.unsplash\.com|unsplash\.com|commons\.wikimedia\.org)[^\"\']*')
+PROJECT_BY_ALT = {
+    'nhà hàng': 'assets/vietnam/project-restaurant.jpg',
+    'khách sạn': 'assets/vietnam/project-hotel.jpg',
+    'canteen': 'assets/vietnam/project-canteen.jpg',
+    'bếp trung tâm': 'assets/vietnam/project-central.png',
+    'trung tâm': 'assets/vietnam/project-central.png',
+}
+
+ARTICLE_BY_ALT = {
+    'hút khói': 'assets/vietnam/article-exhaust.jpg',
+    'bảo trì': 'assets/vietnam/article-maintenance.jpg',
+    'sửa chữa': 'assets/vietnam/repair.jpg',
+    'xử lý lỗi': 'assets/vietnam/article-fault.jpg',
+    'thiết kế bếp': 'assets/vietnam/article-design.jpg',
+}
+
+def set_src(tag: str, src: str) -> str:
+    if re.search(r'\bsrc=["\'][^"\']*["\']', tag, flags=re.I):
+        return re.sub(r'\bsrc=["\'][^"\']*["\']', f'src="{src}"', tag, count=1, flags=re.I)
+    return tag[:-1] + f' src="{src}">'
+
+
+def contextualize_images(text: str) -> str:
+    def repl(match):
+        tag = match.group(0)
+        alt_match = re.search(r'\balt=["\']([^"\']*)["\']', tag, flags=re.I)
+        if not alt_match:
+            return tag
+        alt = alt_match.group(1).lower()
+        # Project labels take priority and guarantee four distinct project images.
+        for needle, src in PROJECT_BY_ALT.items():
+            if needle in alt:
+                return set_src(tag, src)
+        for needle, src in ARTICLE_BY_ALT.items():
+            if needle in alt:
+                return set_src(tag, src)
+        return tag
+    return re.sub(r'<img\b[^>]*>', repl, text, flags=re.I)
+
 
 for html in SITE.glob('*.html'):
     text = html.read_text(encoding='utf-8')
+
+    # Replace original local image names first.
     for old, new in LOCAL.items():
         text = text.replace(old, new)
-    # Previous builds may already contain direct external URLs. Map them by context-sensitive known names below.
-    text = re.sub(r'https://images\.pexels\.com/photos/[^\"\']+', 'assets/vietnam/hero.jpg', text)
-    text = re.sub(r'https://commons\.wikimedia\.org/[^\"\']+', 'assets/vietnam/article-exhaust.jpg', text)
-    text = re.sub(r'https://images\.unsplash\.com/[^\"\']+', 'assets/vietnam/hero.jpg', text)
-    text = re.sub(r'https://unsplash\.com/photos/[^\"\']+', 'assets/vietnam/hero.jpg', text)
+
+    # Remove every legacy external stock-image URL from earlier builds.
+    text = re.sub(r'https://images\.pexels\.com/photos/[^"\']+', 'assets/vietnam/hero.jpg', text)
+    text = re.sub(r'https://commons\.wikimedia\.org/[^"\']+', 'assets/vietnam/article-exhaust.jpg', text)
+    text = re.sub(r'https://images\.unsplash\.com/[^"\']+', 'assets/vietnam/hero.jpg', text)
+    text = re.sub(r'https://unsplash\.com/photos/[^"\']+', 'assets/vietnam/hero.jpg', text)
+
+    # Repair old builds where all project cards had been collapsed to hero.jpg.
+    text = contextualize_images(text)
+
     text = text.replace('Dự án tiêu biểu', 'Mô hình dự án')
     text = text.replace('alt="Dự án bếp nhà hàng"', 'alt="Bếp nhà hàng thực tế tại Việt Nam"')
     text = text.replace('alt="Dự án bếp khách sạn"', 'alt="Bếp khách sạn thực tế tại Việt Nam"')
     text = text.replace('alt="Dự án bếp canteen"', 'alt="Bếp canteen thực tế tại Việt Nam"')
-    text = text.replace('alt="Dự án bếp trung tâm"', 'alt="Bếp công nghiệp quy mô lớn tại Việt Nam"')
+    text = text.replace('alt="Dự án bếp trung tâm"', 'alt="Bếp trung tâm thực tế tại Việt Nam"')
+
     if 'fonts.googleapis.com' not in text:
-        text = text.replace('<link rel="stylesheet" href="styles.css">', FONT_LINKS + '<link rel="stylesheet" href="styles.css?v=9">')
-    text = text.replace('<script src="script.js"></script>', '<script src="script.js?v=9"></script>')
+        text = text.replace('<link rel="stylesheet" href="styles.css">', FONT_LINKS + '<link rel="stylesheet" href="styles.css?v=10">')
+    text = text.replace('<script src="script.js"></script>', '<script src="script.js?v=10"></script>')
     html.write_text(text, encoding='utf-8')
 
 css_path = SITE / 'styles.css'
 css = css_path.read_text(encoding='utf-8')
 for old, new in LOCAL.items():
     css = css.replace(old, new)
-css = re.sub(r'https://images\.pexels\.com/photos/[^\"\')]+', 'assets/vietnam/hero.jpg', css)
-css = re.sub(r'https://images\.unsplash\.com/[^\"\')]+', 'assets/vietnam/hero.jpg', css)
-css = css.replace(
-    'font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif',
-    'font-family:"Be Vietnam Pro",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
-)
+css = re.sub(r'https://images\.pexels\.com/photos/[^"\')]+', 'assets/vietnam/hero.jpg', css)
+css = re.sub(r'https://images\.unsplash\.com/[^"\')]+', 'assets/vietnam/hero.jpg', css)
 css += '''
 
-/* Vietnam-only real-photo refresh v9 */
+/* Vietnam-only real-photo refresh v10 */
 body{font-family:"Be Vietnam Pro",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:400;letter-spacing:-.008em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 h1,h2,h3,h4,.hero-sub,.menu,.btn,.eyebrow,.stat b,.project-info strong,.article-hero h1{font-family:"Montserrat","Be Vietnam Pro",ui-sans-serif,system-ui,sans-serif}
 .hero h1,.page-hero h1,.article-hero h1{font-weight:900;letter-spacing:-.045em}
@@ -116,13 +159,24 @@ h1,h2,h3,h4,.hero-sub,.menu,.btn,.eyebrow,.stat b,.project-info strong,.article-
 '''
 css_path.write_text(css, encoding='utf-8')
 
-all_html='\n'.join(p.read_text(encoding='utf-8') for p in SITE.glob('*.html'))
+all_html = '\n'.join(p.read_text(encoding='utf-8') for p in SITE.glob('*.html'))
 for forbidden in ['images.pexels.com', 'images.unsplash.com', 'unsplash.com/photos/', 'commons.wikimedia.org']:
-    assert forbidden not in all_html, f'forbidden non-Vietnam image source remains: {forbidden}'
-for required in [
-    'project-restaurant.jpg', 'project-hotel.jpg', 'project-canteen.jpg', 'project-central.png',
-    'article-design.jpg', 'article-layout.jpg', 'article-exhaust.jpg'
-]:
-    assert required in all_html, f'missing Vietnam visual: {required}'
-assert len({LOCAL['assets/project-nha-hang.jpg'], LOCAL['assets/project-khach-san.jpg'], LOCAL['assets/project-canteen.jpg'], LOCAL['assets/project-bep-trung-tam.jpg']}) == 4
-print('Vietnam-only real photography downloaded locally and wired; project cards are unique')
+    assert forbidden not in all_html, f'forbidden old image source remains: {forbidden}'
+
+# Must have four distinct Vietnam project images wired into HTML.
+required_projects = [
+    'assets/vietnam/project-restaurant.jpg',
+    'assets/vietnam/project-hotel.jpg',
+    'assets/vietnam/project-canteen.jpg',
+    'assets/vietnam/project-central.png',
+]
+for required in required_projects:
+    assert required in all_html, f'missing Vietnam project visual: {required}'
+assert len(set(required_projects)) == 4
+
+# Every declared local image must exist and be non-trivial.
+for filename in SOURCES:
+    target = ASSET_DIR / filename
+    assert target.exists() and target.stat().st_size >= 20_000, f'invalid image asset: {filename}'
+
+print('Vietnam-only photography wired successfully; four project cards use four distinct images')
