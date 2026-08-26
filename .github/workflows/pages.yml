@@ -59,44 +59,71 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           site = Path('_site')
-          images = {
-            'assets/hero-kitchen.jpg': 'https://images.unsplash.com/photo-1771574207826-02f0d845e3a7?auto=format&fit=crop&w=2200&q=84',
-            'assets/project-nha-hang.jpg': 'https://images.unsplash.com/photo-1774989423979-6a7bf5add3f0?auto=format&fit=crop&w=1400&q=82',
-            'assets/project-khach-san.jpg': 'https://images.unsplash.com/photo-1582996720676-27b894004e48?auto=format&fit=crop&w=1400&q=82',
-            'assets/project-canteen.jpg': 'https://images.unsplash.com/photo-1760001553414-5634201efc36?auto=format&fit=crop&w=1400&q=82',
-            'assets/project-bep-trung-tam.jpg': 'https://images.unsplash.com/photo-1771574207826-02f0d845e3a7?auto=format&fit=crop&w=1400&q=82',
-            'assets/repair-tech.jpg': 'https://images.unsplash.com/photo-1764408182167-043042cb086e?auto=format&fit=crop&w=1400&q=82',
-            'assets/about-team.jpg': 'https://images.unsplash.com/photo-1771574207826-02f0d845e3a7?auto=format&fit=crop&w=1400&q=82',
-            'assets/contact-visual.jpg': 'https://images.unsplash.com/photo-1774989423979-6a7bf5add3f0?auto=format&fit=crop&w=1400&q=82',
-            'assets/industrial-texture.jpg': 'https://images.unsplash.com/photo-1582996720676-27b894004e48?auto=format&fit=crop&w=1400&q=82',
-            'assets/article-thiet-ke-bep.jpg': 'https://images.unsplash.com/photo-1771574207826-02f0d845e3a7?auto=format&fit=crop&w=1800&q=82',
-            'assets/article-bo-tri-nha-hang.jpg': 'https://images.unsplash.com/photo-1774989423979-6a7bf5add3f0?auto=format&fit=crop&w=1600&q=82',
-            'assets/article-hut-khoi.jpg': 'https://images.unsplash.com/photo-1765448856922-b97fce59d270?auto=format&fit=crop&w=1600&q=82',
-            'assets/article-bao-tri.jpg': 'https://images.unsplash.com/photo-1764408182167-043042cb086e?auto=format&fit=crop&w=1600&q=82',
-            'assets/article-xu-ly-loi.jpg': 'https://images.unsplash.com/photo-1772329362979-dbbb531b10bc?auto=format&fit=crop&w=1600&q=82',
-            'assets/article-bep-canteen.jpg': 'https://images.unsplash.com/photo-1760001553414-5634201efc36?auto=format&fit=crop&w=1600&q=82',
+
+          # Replace old Unsplash download endpoints with render-safe CDN URLs.
+          direct = {
+            'r98ko7v0Vas': 'https://images.unsplash.com/photo-1771574207826-02f0d845e3a7?auto=format&fit=crop&w=1800&q=84',
+            'Yxm90BYxq3E': 'https://images.unsplash.com/photo-1774989423979-6a7bf5add3f0?auto=format&fit=crop&w=1600&q=82',
+            'F9v4iq0RDZ0': 'https://images.unsplash.com/photo-1765448856922-b97fce59d270?auto=format&fit=crop&w=1600&q=82',
+            'KDB8-kQw0Ac': 'https://images.unsplash.com/photo-1764408182167-043042cb086e?auto=format&fit=crop&w=1600&q=82',
+            'Y_tMFA6KCcI': 'https://images.unsplash.com/photo-1774101200315-8ac504fa0fd4?auto=format&fit=crop&w=1600&q=82',
+            'KhZSSHoS6Xs': 'https://images.unsplash.com/photo-1760001553414-5634201efc36?auto=format&fit=crop&w=1600&q=82',
+            'GUvMJU5ZZLg': 'https://images.unsplash.com/photo-1783615312917-9d77b2434c55?auto=format&fit=crop&w=1600&q=82',
+            'TNMene5DvQ8': 'https://images.unsplash.com/photo-1582996720676-27b894004e48?auto=format&fit=crop&w=1600&q=82',
+            'WNGGc1euT_g': 'https://images.unsplash.com/photo-1760001553414-5634201efc36?auto=format&fit=crop&w=1600&q=82',
+            'aCgbkvfkFME': 'https://images.unsplash.com/photo-1771574207826-02f0d845e3a7?auto=format&fit=crop&w=1600&q=82',
+            'BrlIqTYR190': 'https://images.unsplash.com/photo-1774989423979-6a7bf5add3f0?auto=format&fit=crop&w=1600&q=82',
+            'yTw1v1SIxUE': 'https://images.unsplash.com/photo-1764408182167-043042cb086e?auto=format&fit=crop&w=1600&q=82',
+            'YFK5dBI6Ftc': 'https://images.unsplash.com/photo-1771574207826-02f0d845e3a7?auto=format&fit=crop&w=1600&q=82',
+          }
+
+          # Local fallbacks if any old local asset reference remains.
+          local_images = {
+            'assets/hero-kitchen.jpg': direct['r98ko7v0Vas'],
+            'assets/project-nha-hang.jpg': direct['Yxm90BYxq3E'],
+            'assets/project-khach-san.jpg': direct['TNMene5DvQ8'],
+            'assets/project-canteen.jpg': direct['KhZSSHoS6Xs'],
+            'assets/project-bep-trung-tam.jpg': direct['aCgbkvfkFME'],
+            'assets/repair-tech.jpg': direct['yTw1v1SIxUE'],
+            'assets/about-team.jpg': direct['YFK5dBI6Ftc'],
+            'assets/contact-visual.jpg': direct['WNGGc1euT_g'],
+            'assets/industrial-texture.jpg': direct['TNMene5DvQ8'],
+            'assets/article-thiet-ke-bep.jpg': direct['r98ko7v0Vas'],
+            'assets/article-bo-tri-nha-hang.jpg': direct['Yxm90BYxq3E'],
+            'assets/article-hut-khoi.jpg': direct['F9v4iq0RDZ0'],
+            'assets/article-bao-tri.jpg': direct['KDB8-kQw0Ac'],
+            'assets/article-xu-ly-loi.jpg': direct['Y_tMFA6KCcI'],
+            'assets/article-bep-canteen.jpg': direct['KhZSSHoS6Xs'],
           }
 
           font_links = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
                         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
                         '<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">')
 
+          download_re = re.compile(r'https://unsplash\.com/photos/([^/]+)/download\?[^\"\']+')
+
+          def swap_download(match):
+            photo_id = match.group(1)
+            return direct.get(photo_id, direct['r98ko7v0Vas'])
+
           for html in site.glob('*.html'):
             text = html.read_text(encoding='utf-8')
-            for old, new in images.items():
+            text = download_re.sub(swap_download, text)
+            for old, new in local_images.items():
               text = text.replace(old, new)
             if 'fonts.googleapis.com' not in text:
-              text = text.replace('<link rel="stylesheet" href="styles.css">', font_links + '<link rel="stylesheet" href="styles.css?v=3">')
+              text = text.replace('<link rel="stylesheet" href="styles.css">', font_links + '<link rel="stylesheet" href="styles.css?v=4">')
             if '<meta name="robots"' not in text:
               text = text.replace('<meta name="viewport" content="width=device-width,initial-scale=1">', '<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">')
-            text = text.replace('<script src="script.js"></script>', '<script src="script.js?v=3"></script>')
+            text = text.replace('<script src="script.js"></script>', '<script src="script.js?v=4"></script>')
             html.write_text(text, encoding='utf-8')
 
           css_path = site / 'styles.css'
           css = css_path.read_text(encoding='utf-8')
-          for old, new in images.items():
+          for old, new in local_images.items():
             css = css.replace(old, new)
           css = css.replace(
             'font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif',
@@ -104,7 +131,7 @@ jobs:
           )
           css += '''
 
-          /* Typography refresh v3 */
+          /* Typography refresh v4 */
           body{font-family:"Be Vietnam Pro",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:400;letter-spacing:-.008em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
           h1,h2,h3,h4,.hero-sub,.menu,.btn,.eyebrow,.stat b,.project-info strong,.article-hero h1{font-family:"Montserrat","Be Vietnam Pro",ui-sans-serif,system-ui,sans-serif}
           .hero h1,.page-hero h1,.article-hero h1{font-weight:900;letter-spacing:-.045em}
@@ -114,7 +141,6 @@ jobs:
           .project-card img,.news-card img,.gallery-item img,.repair-photo img,.project-detail img,.about-split img,.article-figure img{filter:saturate(1.06) contrast(1.04)}
           '''
           css_path.write_text(css, encoding='utf-8')
-
           (site / 'robots.txt').write_text('User-agent: *\nDisallow: /\n', encoding='utf-8')
           PY
 
@@ -122,11 +148,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'images.unsplash.com' _site/index.html
-          grep -q 'Be Vietnam Pro' _site/styles.css
-          grep -q 'Montserrat' _site/styles.css
-          grep -q 'images.unsplash.com' _site/du-an.html
-          grep -q 'images.unsplash.com' _site/tin-tuc.html
+          python - <<'PY'
+          from pathlib import Path
+          pages=list(Path('_site').glob('*.html'))
+          count=sum(p.read_text(encoding='utf-8').count('images.unsplash.com') for p in pages)
+          css=Path('_site/styles.css').read_text(encoding='utf-8')
+          print('Direct image CDN references:', count)
+          assert count >= 20, f'expected >=20 image references, got {count}'
+          assert 'Be Vietnam Pro' in css
+          assert 'Montserrat' in css
+          assert 'images.unsplash.com' in css
+          PY
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
