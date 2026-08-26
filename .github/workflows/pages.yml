@@ -54,11 +54,14 @@ jobs:
           test -f _site/script.js
           test -f _site/assets/logo.svg
 
-      - name: Apply real photography and typography
+      - name: Apply Vietnam-only real photography
         run: python tools/apply_visuals.py
 
       - name: Apply exact bepaau.com.vn contact information
         run: python tools/apply_company_info.py
+
+      - name: Add Vietnamese and English selector
+        run: python tools/apply_language_switch.py
 
       - name: Verify preview content
         shell: bash
@@ -80,9 +83,15 @@ jobs:
             '8:00 - 20:30, thứ 2 đến thứ 7',
             'Chủ nhật nghỉ',
             'verified-company-schema',
+            'class="language-switcher"',
+            'translate.google.com/translate?sl=vi&tl=en',
+            'assets/vietnam/project-restaurant.jpg',
+            'assets/vietnam/project-hotel.jpg',
+            'assets/vietnam/project-canteen.jpg',
+            'assets/vietnam/project-central.png',
           ]
           for value in required:
-              assert value in html, f'missing exact bepaau.com.vn data: {value}'
+              assert value in html, f'missing required preview content: {value}'
 
           forbidden = [
             '0106163396', 'info@bepaau.com.vn',
@@ -90,15 +99,17 @@ jobs:
             'LK24 Khu đô thị Nam La Khê, phường Hà Đông, Hà Nội',
             '0961 048 405', '0962 554 955', '028 22 404 999', '0904 603 688',
             '46B, Đường Số 6, Phường Tân Sơn Nhì, TP.Hồ Chí Minh',
+            'images.pexels.com', 'images.unsplash.com', 'unsplash.com/photos/', 'commons.wikimedia.org',
           ]
           for value in forbidden:
-              assert value not in html, f'old incorrect data still present: {value}'
+              assert value not in html, f'forbidden/old content still present: {value}'
 
-          assert html.count('images.pexels.com') >= 20
-          assert html.count('commons.wikimedia.org') >= 1
-          assert 'images.unsplash.com' not in html
+          vn_assets = list(Path('_site/assets/vietnam').glob('*'))
+          assert len(vn_assets) >= 12, f'expected >=12 Vietnam image assets, got {len(vn_assets)}'
+          assert html.count('class="language-switcher"') == len(pages)
           print('Pages:', len(pages))
-          print('Exact bepaau.com.vn contact information: PASS')
+          print('Vietnam image assets:', len(vn_assets))
+          print('Vietnam-only imagery + exact contact + VI/EN selector: PASS')
           PY
 
       - name: Setup Pages
