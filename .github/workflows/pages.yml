@@ -63,6 +63,9 @@ jobs:
       - name: Add Vietnamese and English selector
         run: python tools/apply_language_switch.py
 
+      - name: Sync hotline and add Call Zalo Facebook buttons
+        run: python tools/apply_contact_buttons.py
+
       - name: Verify preview content
         shell: bash
         run: |
@@ -80,6 +83,12 @@ jobs:
             '43 đường số 6, cư xá Chu Văn An, Bình Thạnh, TP HCM',
             '393/2G Nguyễn Xí, P13, Quận Bình Thạnh, TP HCM',
             '093.307.8500',
+            'tel:0933078500',
+            'https://zalo.me/0933078500',
+            'class="contact-dock"',
+            'contact-dock__call',
+            'contact-dock__zalo',
+            'contact-dock__facebook',
             '8:00 - 20:30, thứ 2 đến thứ 7',
             'Chủ nhật nghỉ',
             'verified-company-schema',
@@ -98,6 +107,7 @@ jobs:
             'Thôn 7, Đình Vĩ, xã Hoài Đức, Hà Nội',
             'LK24 Khu đô thị Nam La Khê, phường Hà Đông, Hà Nội',
             '0961 048 405', '0962 554 955', '028 22 404 999', '0904 603 688',
+            '0822 122 248', '0832 122 208', '0902 122 208',
             '46B, Đường Số 6, Phường Tân Sơn Nhì, TP.Hồ Chí Minh',
             'images.pexels.com', 'images.unsplash.com', 'unsplash.com/photos/', 'commons.wikimedia.org',
           ]
@@ -107,9 +117,10 @@ jobs:
           vn_assets = list(Path('_site/assets/vietnam').glob('*'))
           assert len(vn_assets) >= 12, f'expected >=12 Vietnam image assets, got {len(vn_assets)}'
           assert html.count('class="language-switcher"') == len(pages)
+          assert html.count('class="contact-dock"') == len(pages)
           print('Pages:', len(pages))
           print('Vietnam image assets:', len(vn_assets))
-          print('Vietnam-only imagery + exact contact + VI/EN selector: PASS')
+          print('Vietnam-only imagery + exact contact + VI/EN + contact buttons: PASS')
           PY
 
       - name: Setup Pages
