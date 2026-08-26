@@ -63,7 +63,6 @@ jobs:
 
           site = Path('_site')
 
-          # Replace old Unsplash download endpoints with render-safe CDN URLs.
           direct = {
             'r98ko7v0Vas': 'https://images.unsplash.com/photo-1771574207826-02f0d845e3a7?auto=format&fit=crop&w=1800&q=84',
             'Yxm90BYxq3E': 'https://images.unsplash.com/photo-1774989423979-6a7bf5add3f0?auto=format&fit=crop&w=1600&q=82',
@@ -80,7 +79,6 @@ jobs:
             'YFK5dBI6Ftc': 'https://images.unsplash.com/photo-1771574207826-02f0d845e3a7?auto=format&fit=crop&w=1600&q=82',
           }
 
-          # Local fallbacks if any old local asset reference remains.
           local_images = {
             'assets/hero-kitchen.jpg': direct['r98ko7v0Vas'],
             'assets/project-nha-hang.jpg': direct['Yxm90BYxq3E'],
@@ -115,10 +113,10 @@ jobs:
             for old, new in local_images.items():
               text = text.replace(old, new)
             if 'fonts.googleapis.com' not in text:
-              text = text.replace('<link rel="stylesheet" href="styles.css">', font_links + '<link rel="stylesheet" href="styles.css?v=4">')
+              text = text.replace('<link rel="stylesheet" href="styles.css">', font_links + '<link rel="stylesheet" href="styles.css?v=5">')
             if '<meta name="robots"' not in text:
               text = text.replace('<meta name="viewport" content="width=device-width,initial-scale=1">', '<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">')
-            text = text.replace('<script src="script.js"></script>', '<script src="script.js?v=4"></script>')
+            text = text.replace('<script src="script.js"></script>', '<script src="script.js?v=5"></script>')
             html.write_text(text, encoding='utf-8')
 
           css_path = site / 'styles.css'
@@ -131,13 +129,14 @@ jobs:
           )
           css += '''
 
-          /* Typography refresh v4 */
+          /* Typography + hero refresh v5 */
           body{font-family:"Be Vietnam Pro",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:400;letter-spacing:-.008em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
           h1,h2,h3,h4,.hero-sub,.menu,.btn,.eyebrow,.stat b,.project-info strong,.article-hero h1{font-family:"Montserrat","Be Vietnam Pro",ui-sans-serif,system-ui,sans-serif}
           .hero h1,.page-hero h1,.article-hero h1{font-weight:900;letter-spacing:-.045em}
           .section-head h2,.repair-copy h2,.project-detail h2{font-weight:800}
           .hero-sub,.menu,.btn,.eyebrow{font-weight:800}
           p,li{font-weight:400}
+          .hero-bg{background-image:url("https://images.unsplash.com/photo-1771574207826-02f0d845e3a7?auto=format&fit=crop&w=2200&q=84")!important;background-size:cover!important;background-position:center!important}
           .project-card img,.news-card img,.gallery-item img,.repair-photo img,.project-detail img,.about-split img,.article-figure img{filter:saturate(1.06) contrast(1.04)}
           '''
           css_path.write_text(css, encoding='utf-8')
@@ -157,7 +156,7 @@ jobs:
           assert count >= 20, f'expected >=20 image references, got {count}'
           assert 'Be Vietnam Pro' in css
           assert 'Montserrat' in css
-          assert 'images.unsplash.com' in css
+          assert '.hero-bg{background-image:url("https://images.unsplash.com/' in css
           PY
 
       - name: Setup Pages
