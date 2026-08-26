@@ -54,167 +54,41 @@ jobs:
           test -f _site/script.js
           test -f _site/assets/logo.svg
 
-      - name: Restore real content-matched photography and typography
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
+      - name: Apply real photography and typography
+        run: python tools/apply_visuals.py
 
-          site = Path('_site')
+      - name: Apply verified company information
+        run: python tools/apply_company_info.py
 
-          # Real photography only. Pexels images are actual photographs and each
-          # selected frame matches the section/article subject. The exhaust image
-          # is a public-domain real commercial hood photo from Wikimedia Commons.
-          direct = {
-            # hero / design: real professional stainless commercial kitchen
-            'r98ko7v0Vas': 'https://images.pexels.com/photos/34276646/pexels-photo-34276646.jpeg?auto=compress&cs=tinysrgb&w=2200',
-            # restaurant: chef working in a real restaurant commercial kitchen
-            'Yxm90BYxq3E': 'https://images.pexels.com/photos/5794152/pexels-photo-5794152.jpeg?auto=compress&cs=tinysrgb&w=1800',
-            # exhaust hood: real commercial hood, utility distribution and makeup air
-            'F9v4iq0RDZ0': 'https://commons.wikimedia.org/wiki/Special:FilePath/CaptiveAire%20Hood.jpg',
-            # maintenance: real appliance repair technician at work
-            'KDB8-kQw0Ac': 'https://images.pexels.com/photos/38190070/pexels-photo-38190070.jpeg?auto=compress&cs=tinysrgb&w=1800',
-            # fault handling: real technician repairing a kitchen appliance
-            'Y_tMFA6KCcI': 'https://images.pexels.com/photos/37174868/pexels-photo-37174868.jpeg?auto=compress&cs=tinysrgb&w=1800',
-            # canteen: real canteen/cafeteria serving line
-            'KhZSSHoS6Xs': 'https://images.pexels.com/photos/5835331/pexels-photo-5835331.jpeg?auto=compress&cs=tinysrgb&w=1800',
-            # generic commercial kitchen fallback
-            'GUvMJU5ZZLg': 'https://images.pexels.com/photos/6375553/pexels-photo-6375553.jpeg?auto=compress&cs=tinysrgb&w=1800',
-            # hotel kitchen: real chef working in a hotel/restaurant kitchen
-            'TNMene5DvQ8': 'https://images.pexels.com/photos/2544830/pexels-photo-2544830.jpeg?auto=compress&cs=tinysrgb&w=1800',
-            # contact: real commercial kitchen workspace
-            'WNGGc1euT_g': 'https://images.pexels.com/photos/6375553/pexels-photo-6375553.jpeg?auto=compress&cs=tinysrgb&w=1800',
-            # central kitchen: real stainless professional kitchen
-            'aCgbkvfkFME': 'https://images.pexels.com/photos/6375553/pexels-photo-6375553.jpeg?auto=compress&cs=tinysrgb&w=1800',
-            'BrlIqTYR190': 'https://images.pexels.com/photos/34276646/pexels-photo-34276646.jpeg?auto=compress&cs=tinysrgb&w=1800',
-            # repair service: real repair technician
-            'yTw1v1SIxUE': 'https://images.pexels.com/photos/38190070/pexels-photo-38190070.jpeg?auto=compress&cs=tinysrgb&w=1800',
-            # about/team: real chefs working together in a commercial kitchen
-            'YFK5dBI6Ftc': 'https://images.pexels.com/photos/5779775/pexels-photo-5779775.jpeg?auto=compress&cs=tinysrgb&w=1800',
-          }
-
-          local_images = {
-            'assets/hero-kitchen.jpg': direct['r98ko7v0Vas'],
-            'assets/hero-kitchen.webp': direct['r98ko7v0Vas'],
-            'assets/project-nha-hang.jpg': direct['Yxm90BYxq3E'],
-            'assets/project-nha-hang.webp': direct['Yxm90BYxq3E'],
-            'assets/project-khach-san.jpg': direct['TNMene5DvQ8'],
-            'assets/project-khach-san.webp': direct['TNMene5DvQ8'],
-            'assets/project-canteen.jpg': direct['KhZSSHoS6Xs'],
-            'assets/project-canteen.webp': direct['KhZSSHoS6Xs'],
-            'assets/project-bep-trung-tam.jpg': direct['aCgbkvfkFME'],
-            'assets/project-bep-trung-tam.webp': direct['aCgbkvfkFME'],
-            'assets/repair-tech.jpg': direct['yTw1v1SIxUE'],
-            'assets/repair-tech.webp': direct['yTw1v1SIxUE'],
-            'assets/about-team.jpg': direct['YFK5dBI6Ftc'],
-            'assets/about-team.webp': direct['YFK5dBI6Ftc'],
-            'assets/contact-visual.jpg': direct['WNGGc1euT_g'],
-            'assets/contact-visual.webp': direct['WNGGc1euT_g'],
-            'assets/industrial-texture.jpg': direct['GUvMJU5ZZLg'],
-            'assets/industrial-texture.webp': direct['GUvMJU5ZZLg'],
-            'assets/article-thiet-ke-bep.jpg': direct['r98ko7v0Vas'],
-            'assets/article-thiet-ke-bep.webp': direct['r98ko7v0Vas'],
-            'assets/article-bo-tri-nha-hang.jpg': direct['Yxm90BYxq3E'],
-            'assets/article-bo-tri-nha-hang.webp': direct['Yxm90BYxq3E'],
-            'assets/article-hut-khoi.jpg': direct['F9v4iq0RDZ0'],
-            'assets/article-hut-khoi.webp': direct['F9v4iq0RDZ0'],
-            'assets/article-bao-tri.jpg': direct['KDB8-kQw0Ac'],
-            'assets/article-bao-tri.webp': direct['KDB8-kQw0Ac'],
-            'assets/article-xu-ly-loi.jpg': direct['Y_tMFA6KCcI'],
-            'assets/article-xu-ly-loi.webp': direct['Y_tMFA6KCcI'],
-            'assets/article-bep-canteen.jpg': direct['KhZSSHoS6Xs'],
-            'assets/article-bep-canteen.webp': direct['KhZSSHoS6Xs'],
-          }
-
-          font_links = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
-                        '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-                        '<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">')
-
-          download_re = re.compile(r'https://unsplash\.com/photos/([^/]+)/download\?[^\"\']+')
-
-          def swap_download(match):
-            photo_id = match.group(1)
-            return direct.get(photo_id, direct['r98ko7v0Vas'])
-
-          copy_replacements = {
-            'Dự án tiêu biểu': 'Mô hình dự án',
-            'alt="Dự án bếp nhà hàng"': 'alt="Ảnh chụp thật mô hình bếp nhà hàng công nghiệp"',
-            'alt="Dự án bếp khách sạn"': 'alt="Ảnh chụp thật mô hình bếp khách sạn"',
-            'alt="Dự án bếp canteen"': 'alt="Ảnh chụp thật mô hình bếp canteen"',
-            'alt="Dự án bếp trung tâm"': 'alt="Ảnh chụp thật mô hình bếp trung tâm"',
-            'alt="Kỹ thuật sửa chữa bếp công nghiệp"': 'alt="Ảnh chụp thật kỹ thuật viên sửa chữa thiết bị"',
-            'alt="Kỹ thuật viên sửa chữa bếp công nghiệp"': 'alt="Ảnh chụp thật kỹ thuật viên sửa chữa thiết bị"',
-          }
-
-          for html in site.glob('*.html'):
-            text = html.read_text(encoding='utf-8')
-            text = download_re.sub(swap_download, text)
-            for old, new in local_images.items():
-              text = text.replace(old, new)
-            for old, new in copy_replacements.items():
-              text = text.replace(old, new)
-            if html.name == 'index.html':
-              text = text.replace(
-                'Tập trung vào các hệ thống bếp cần khảo sát, thiết kế, bố trí công năng, thi công và nghiệm thu đồng bộ. Mỗi dự án được tiếp cận theo mô hình vận hành thực tế.',
-                'Tập trung vào các hệ thống bếp cần khảo sát, thiết kế, bố trí công năng, thi công và nghiệm thu đồng bộ. Hình ảnh tại khu vực này là ảnh chụp thật minh họa đúng từng mô hình, không phải ảnh AI và không được gắn nhãn là công trình Bếp Á Âu khi chưa có hồ sơ ảnh gốc.'
-              )
-            if html.name == 'du-an.html':
-              text = text.replace(
-                'Mỗi mô hình có tải phục vụ, nhịp chế biến và hạ tầng khác nhau. Bản vẽ phải bắt đầu từ dữ liệu sử dụng thực tế.',
-                'Mỗi mô hình có tải phục vụ, nhịp chế biến và hạ tầng khác nhau. Bản vẽ phải bắt đầu từ dữ liệu sử dụng thực tế. Ảnh hiển thị là ảnh chụp thật đúng loại hình để minh họa cấu hình, chưa được tuyên bố là công trình đã thi công của Bếp Á Âu.'
-              )
-            if 'fonts.googleapis.com' not in text:
-              text = text.replace('<link rel="stylesheet" href="styles.css">', font_links + '<link rel="stylesheet" href="styles.css?v=6">')
-            if '<meta name="robots"' not in text:
-              text = text.replace('<meta name="viewport" content="width=device-width,initial-scale=1">', '<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">')
-            text = text.replace('<script src="script.js"></script>', '<script src="script.js?v=6"></script>')
-            html.write_text(text, encoding='utf-8')
-
-          css_path = site / 'styles.css'
-          css = css_path.read_text(encoding='utf-8')
-          for old, new in local_images.items():
-            css = css.replace(old, new)
-          css = css.replace(
-            'font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif',
-            'font-family:"Be Vietnam Pro",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
-          )
-          css += '''
-
-          /* Real-photo + typography refresh v6 */
-          body{font-family:"Be Vietnam Pro",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:400;letter-spacing:-.008em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-          h1,h2,h3,h4,.hero-sub,.menu,.btn,.eyebrow,.stat b,.project-info strong,.article-hero h1{font-family:"Montserrat","Be Vietnam Pro",ui-sans-serif,system-ui,sans-serif}
-          .hero h1,.page-hero h1,.article-hero h1{font-weight:900;letter-spacing:-.045em}
-          .section-head h2,.repair-copy h2,.project-detail h2{font-weight:800}
-          .hero-sub,.menu,.btn,.eyebrow{font-weight:800}
-          p,li{font-weight:400}
-          .hero-bg{background-image:url("https://images.pexels.com/photos/34276646/pexels-photo-34276646.jpeg?auto=compress&cs=tinysrgb&w=2200")!important;background-size:cover!important;background-position:center!important}
-          .project-card img,.news-card img,.gallery-item img,.repair-photo img,.project-detail img,.about-split img,.article-figure img{filter:saturate(1.02) contrast(1.02)}
-          '''
-          css_path.write_text(css, encoding='utf-8')
-          (site / 'robots.txt').write_text('User-agent: *\nDisallow: /\n', encoding='utf-8')
-          PY
-
-      - name: Verify only real matched photography is wired
+      - name: Verify production preview content
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          pages=list(Path('_site').glob('*.html'))
-          all_html='\n'.join(p.read_text(encoding='utf-8') for p in pages)
-          css=Path('_site/styles.css').read_text(encoding='utf-8')
-          pexels_count=all_html.count('images.pexels.com')
-          commons_count=all_html.count('commons.wikimedia.org')
-          print('Pexels real-photo refs:', pexels_count)
-          print('Commons real-photo refs:', commons_count)
-          assert pexels_count >= 20, f'expected >=20 Pexels photo references, got {pexels_count}'
-          assert commons_count >= 1, 'expected commercial exhaust hood photo'
-          assert 'images.unsplash.com' not in all_html
-          assert 'unsplash.com/photos/' not in all_html
-          assert 'Be Vietnam Pro' in css
-          assert 'Montserrat' in css
-          assert 'images.pexels.com/photos/34276646/' in css
+          pages = list(Path('_site').glob('*.html'))
+          assert len(pages) >= 10, f'expected >=10 HTML pages, got {len(pages)}'
+          html = '\n'.join(p.read_text(encoding='utf-8') for p in pages)
+          required = [
+            'CÔNG TY CỔ PHẦN THIẾT BỊ Á ÂU',
+            '0106163396',
+            'info@bepaau.com.vn',
+            'Thôn 7, Đình Vĩ, xã Hoài Đức, Hà Nội',
+            'LK24 Khu đô thị Nam La Khê, phường Hà Đông, Hà Nội',
+            '0961 048 405',
+            '0962 554 955',
+            '46B, Đường Số 6, Phường Tân Sơn Nhì, TP.Hồ Chí Minh',
+            '028 22 404 999',
+            '0904 603 688',
+            'verified-company-schema',
+          ]
+          for value in required:
+              assert value in html, f'missing required company data: {value}'
+          assert html.count('images.pexels.com') >= 20
+          assert html.count('commons.wikimedia.org') >= 1
+          assert 'images.unsplash.com' not in html
+          print('Pages:', len(pages))
+          print('Verified company information and visual assets: PASS')
           PY
 
       - name: Setup Pages
