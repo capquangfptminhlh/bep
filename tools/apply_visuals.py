@@ -1,72 +1,133 @@
 from pathlib import Path
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 import re
+import time
 
 SITE = Path('_site')
-ASSET_DIR = SITE / 'assets' / 'vietnam'
+ASSET_DIR = SITE / 'assets' / 'generated'
 ASSET_DIR.mkdir(parents=True, exist_ok=True)
 
-# Real photographs from Vietnam-based project/equipment sources only.
-# Frames are deliberately selected without visible people, so no foreign person
-# can appear anywhere in the site photography.
-SOURCES = {
-    'hero.jpg': 'https://bizweb.dktcdn.net/100/485/868/files/z4371519257642-1f85de24cc43f14c8a276b7534e1665b.jpg?v=1684988197479',
-    'project-restaurant.jpg': 'https://daithuanphat.com.vn/upload/filemanager/D%E1%BB%B0%20%C3%81N%20H%E1%BA%A6M%20R%C6%AF%E1%BB%A2U%20S%C3%94NG%20C%E1%BA%A6U%20T%C3%82Y%20NINH/z4434539035761_2a6b569091b663dda40e717ee0e2bbdc.jpg',
-    'project-hotel.jpg': 'https://hayen.com.vn/data/images/thiet-ke-bep-khach-san-toi-uu-hieu-suat_1761193395.jpg',
-    'project-canteen.jpg': 'https://hayen.com.vn/data/images/bep-an-truong-hoc-anh2_1761195946.jpg',
-    'project-central.png': 'https://www.obayashivn.com/Data/Sites/1/News/266/bv1-detail3.png',
-    'repair.jpg': 'https://inoxquyenphat.com.vn/thumbs/1276x956x2/upload/product/chup-hut-10-7753.jpg',
-    'about.jpg': 'https://haihunggroup.com/admin/public/images/tour_imgs/talica-36013522778197258eeecfafa4423627.jpg',
-    'contact.jpg': 'https://file.hstatic.net/1000381568/file/chu-y-bo-tri-lap-dat-trang-thiet-bi-phu-hop-trong-bep-an-tap-the_ea4bbb13f5b6454b84a10daaee3acdb2_grande.jpg',
-    'article-design.jpg': 'https://hayen.com.vn/data/Services/thuvien/1_1614667067.jpg',
-    'article-layout.jpg': 'https://cdn.shopify.com/s/files/1/0878/1270/files/Tam-Quan-Trong-Cua-Bep-Inox-Trong-Nha-Hang_1_480x480.jpg?v=1727689517',
-    'article-exhaust.jpg': 'https://binhhiepphu.com.vn/upload/filemanager/files/Thi%E1%BA%BFt%20b%E1%BB%8B/gia-cong-lap-dat-chup-hut-khoi-gia-re-tai-TPHCM.jpg',
-    'article-maintenance.jpg': 'https://product.hstatic.net/200000574527/product/bep-tu-cong-nghiep-doi-lom-lien-chao-viet-han-vh15kl800x2-ih52-1_03607ce23ac6426bbe11eeae1137e016.jpg',
-    'article-fault.jpg': 'https://meta.vn/Data/image/2022/01/28/bep-tu-cong-nghiep-don-viet-han-vh15kl800-ih52.jpg',
-    'article-canteen.jpg': 'https://file.hstatic.net/1000381568/file/chu-y-bo-tri-lap-dat-trang-thiet-bi-phu-hop-trong-bep-an-tap-the_ea4bbb13f5b6454b84a10daaee3acdb2_grande.jpg',
+# Source-of-truth visual policy:
+# - Never fetch project photography from another kitchen/equipment company.
+# - Generate new visuals specifically for this website.
+# - No people, logos, signs, brand marks, watermarks or readable text.
+# - Fixed seeds keep each build visually stable.
+# The deployed website serves the downloaded files locally; it does not hotlink them.
+GENERATED = {
+    'hero.jpg': {
+        'seed': 12041,
+        'size': (1536, 864),
+        'prompt': 'photorealistic premium industrial commercial kitchen in Vietnam, expansive stainless steel 304 cooking line, professional exhaust hoods, spotless dark charcoal architecture, cinematic architectural photography, dramatic but realistic lighting, large clean negative space on the left for website headline, no people, no human, no text, no letters, no logo, no brand, no watermark, no signage',
+    },
+    'project-restaurant.jpg': {
+        'seed': 32117,
+        'size': (1200, 900),
+        'prompt': 'photorealistic high end restaurant commercial kitchen in Vietnam, stainless steel 304 cooking range, wok and stove line, professional ventilation hood, warm premium restaurant lighting, clean organized workspace, architectural interior photography, no people, no human, no text, no letters, no logo, no brand, no watermark, no signage',
+    },
+    'project-hotel.jpg': {
+        'seed': 46021,
+        'size': (1200, 900),
+        'prompt': 'photorealistic luxury hotel industrial kitchen in Vietnam, very large stainless steel 304 prep islands, combi ovens, cooking line, extraction hoods, elegant modern hotel back of house, bright professional lighting, architectural photography, no people, no human, no text, no letters, no logo, no brand, no watermark, no signage',
+    },
+    'project-canteen.jpg': {
+        'seed': 58103,
+        'size': (1200, 900),
+        'prompt': 'photorealistic modern factory and school canteen industrial kitchen in Vietnam, large stainless steel serving line, food trays, bulk cooking equipment, clean bright hygienic interior, professional commercial kitchen architecture, no people, no human, no text, no letters, no logo, no brand, no watermark, no signage',
+    },
+    'project-central.jpg': {
+        'seed': 73019,
+        'size': (1200, 900),
+        'prompt': 'photorealistic massive central production kitchen in Vietnam, industrial stainless steel 304 equipment, multiple preparation islands, large extraction hood system, high capacity professional food production facility, dark premium industrial architecture, no people, no human, no text, no letters, no logo, no brand, no watermark, no signage',
+    },
 }
 
-# Download once during the build; the deployed page only serves local files.
-for filename, url in SOURCES.items():
-    target = ASSET_DIR / filename
-    req = Request(url, headers={'User-Agent': 'Mozilla/5.0 (Bep A Au GitHub Pages build)'})
-    with urlopen(req, timeout=30) as response:
-        data = response.read()
-    if len(data) < 20_000:
-        raise RuntimeError(f'image download too small/failed: {filename} ({len(data)} bytes)')
-    target.write_bytes(data)
 
+def generation_url(prompt: str, width: int, height: int, seed: int) -> str:
+    encoded = quote(prompt, safe='')
+    return (
+        f'https://image.pollinations.ai/prompt/{encoded}'
+        f'?width={width}&height={height}&seed={seed}&model=flux&nologo=true&private=true&safe=true&enhance=true'
+    )
+
+
+def generate_to_file(filename: str, spec: dict) -> None:
+    target = ASSET_DIR / filename
+    width, height = spec['size']
+    url = generation_url(spec['prompt'], width, height, spec['seed'])
+    last_error = None
+    for attempt in range(1, 6):
+        try:
+            req = Request(url, headers={'User-Agent': 'Mozilla/5.0 BepAAu-GitHub-Pages/1.0'})
+            with urlopen(req, timeout=240) as response:
+                data = response.read()
+                content_type = (response.headers.get('Content-Type') or '').lower()
+            if len(data) < 25_000:
+                raise RuntimeError(f'generated image too small: {len(data)} bytes')
+            if 'image' not in content_type:
+                raise RuntimeError(f'unexpected content type: {content_type}')
+            target.write_bytes(data)
+            return
+        except Exception as exc:
+            last_error = exc
+            if attempt == 5:
+                break
+            time.sleep(8 * attempt)
+    raise RuntimeError(f'failed to generate {filename}: {last_error}')
+
+
+for filename, spec in GENERATED.items():
+    generate_to_file(filename, spec)
+    # Old endpoint is rate-limited; spacing requests also makes CI more reliable.
+    time.sleep(6)
+
+# Every original site image is now mapped to one of the five newly generated visuals.
 LOCAL = {
-    'assets/hero-kitchen.jpg': 'assets/vietnam/hero.jpg',
-    'assets/hero-kitchen.webp': 'assets/vietnam/hero.jpg',
-    'assets/project-nha-hang.jpg': 'assets/vietnam/project-restaurant.jpg',
-    'assets/project-nha-hang.webp': 'assets/vietnam/project-restaurant.jpg',
-    'assets/project-khach-san.jpg': 'assets/vietnam/project-hotel.jpg',
-    'assets/project-khach-san.webp': 'assets/vietnam/project-hotel.jpg',
-    'assets/project-canteen.jpg': 'assets/vietnam/project-canteen.jpg',
-    'assets/project-canteen.webp': 'assets/vietnam/project-canteen.jpg',
-    'assets/project-bep-trung-tam.jpg': 'assets/vietnam/project-central.png',
-    'assets/project-bep-trung-tam.webp': 'assets/vietnam/project-central.png',
-    'assets/repair-tech.jpg': 'assets/vietnam/repair.jpg',
-    'assets/repair-tech.webp': 'assets/vietnam/repair.jpg',
-    'assets/about-team.jpg': 'assets/vietnam/about.jpg',
-    'assets/about-team.webp': 'assets/vietnam/about.jpg',
-    'assets/contact-visual.jpg': 'assets/vietnam/contact.jpg',
-    'assets/contact-visual.webp': 'assets/vietnam/contact.jpg',
-    'assets/industrial-texture.jpg': 'assets/vietnam/hero.jpg',
-    'assets/industrial-texture.webp': 'assets/vietnam/hero.jpg',
-    'assets/article-thiet-ke-bep.jpg': 'assets/vietnam/article-design.jpg',
-    'assets/article-thiet-ke-bep.webp': 'assets/vietnam/article-design.jpg',
-    'assets/article-bo-tri-nha-hang.jpg': 'assets/vietnam/article-layout.jpg',
-    'assets/article-bo-tri-nha-hang.webp': 'assets/vietnam/article-layout.jpg',
-    'assets/article-hut-khoi.jpg': 'assets/vietnam/article-exhaust.jpg',
-    'assets/article-hut-khoi.webp': 'assets/vietnam/article-exhaust.jpg',
-    'assets/article-bao-tri.jpg': 'assets/vietnam/article-maintenance.jpg',
-    'assets/article-bao-tri.webp': 'assets/vietnam/article-maintenance.jpg',
-    'assets/article-xu-ly-loi.jpg': 'assets/vietnam/article-fault.jpg',
-    'assets/article-xu-ly-loi.webp': 'assets/vietnam/article-fault.jpg',
-    'assets/article-bep-canteen.jpg': 'assets/vietnam/article-canteen.jpg',
-    'assets/article-bep-canteen.webp': 'assets/vietnam/article-canteen.jpg',
+    'assets/hero-kitchen.jpg': 'assets/generated/hero.jpg',
+    'assets/hero-kitchen.webp': 'assets/generated/hero.jpg',
+    'assets/project-nha-hang.jpg': 'assets/generated/project-restaurant.jpg',
+    'assets/project-nha-hang.webp': 'assets/generated/project-restaurant.jpg',
+    'assets/project-khach-san.jpg': 'assets/generated/project-hotel.jpg',
+    'assets/project-khach-san.webp': 'assets/generated/project-hotel.jpg',
+    'assets/project-canteen.jpg': 'assets/generated/project-canteen.jpg',
+    'assets/project-canteen.webp': 'assets/generated/project-canteen.jpg',
+    'assets/project-bep-trung-tam.jpg': 'assets/generated/project-central.jpg',
+    'assets/project-bep-trung-tam.webp': 'assets/generated/project-central.jpg',
+    'assets/repair-tech.jpg': 'assets/generated/project-central.jpg',
+    'assets/repair-tech.webp': 'assets/generated/project-central.jpg',
+    'assets/about-team.jpg': 'assets/generated/hero.jpg',
+    'assets/about-team.webp': 'assets/generated/hero.jpg',
+    'assets/contact-visual.jpg': 'assets/generated/project-canteen.jpg',
+    'assets/contact-visual.webp': 'assets/generated/project-canteen.jpg',
+    'assets/industrial-texture.jpg': 'assets/generated/hero.jpg',
+    'assets/industrial-texture.webp': 'assets/generated/hero.jpg',
+    'assets/article-thiet-ke-bep.jpg': 'assets/generated/hero.jpg',
+    'assets/article-thiet-ke-bep.webp': 'assets/generated/hero.jpg',
+    'assets/article-bo-tri-nha-hang.jpg': 'assets/generated/project-restaurant.jpg',
+    'assets/article-bo-tri-nha-hang.webp': 'assets/generated/project-restaurant.jpg',
+    'assets/article-hut-khoi.jpg': 'assets/generated/project-central.jpg',
+    'assets/article-hut-khoi.webp': 'assets/generated/project-central.jpg',
+    'assets/article-bao-tri.jpg': 'assets/generated/project-hotel.jpg',
+    'assets/article-bao-tri.webp': 'assets/generated/project-hotel.jpg',
+    'assets/article-xu-ly-loi.jpg': 'assets/generated/project-central.jpg',
+    'assets/article-xu-ly-loi.webp': 'assets/generated/project-central.jpg',
+    'assets/article-bep-canteen.jpg': 'assets/generated/project-canteen.jpg',
+    'assets/article-bep-canteen.webp': 'assets/generated/project-canteen.jpg',
+}
+
+PROJECT_BY_ALT = {
+    'nhà hàng': 'assets/generated/project-restaurant.jpg',
+    'khách sạn': 'assets/generated/project-hotel.jpg',
+    'canteen': 'assets/generated/project-canteen.jpg',
+    'bếp trung tâm': 'assets/generated/project-central.jpg',
+    'trung tâm': 'assets/generated/project-central.jpg',
+}
+ARTICLE_BY_ALT = {
+    'hút khói': 'assets/generated/project-central.jpg',
+    'bảo trì': 'assets/generated/project-hotel.jpg',
+    'sửa chữa': 'assets/generated/project-central.jpg',
+    'xử lý lỗi': 'assets/generated/project-central.jpg',
+    'thiết kế bếp': 'assets/generated/hero.jpg',
 }
 
 FONT_LINKS = (
@@ -75,21 +136,6 @@ FONT_LINKS = (
     '<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">'
 )
 
-PROJECT_BY_ALT = {
-    'nhà hàng': 'assets/vietnam/project-restaurant.jpg',
-    'khách sạn': 'assets/vietnam/project-hotel.jpg',
-    'canteen': 'assets/vietnam/project-canteen.jpg',
-    'bếp trung tâm': 'assets/vietnam/project-central.png',
-    'trung tâm': 'assets/vietnam/project-central.png',
-}
-
-ARTICLE_BY_ALT = {
-    'hút khói': 'assets/vietnam/article-exhaust.jpg',
-    'bảo trì': 'assets/vietnam/article-maintenance.jpg',
-    'sửa chữa': 'assets/vietnam/repair.jpg',
-    'xử lý lỗi': 'assets/vietnam/article-fault.jpg',
-    'thiết kế bếp': 'assets/vietnam/article-design.jpg',
-}
 
 def set_src(tag: str, src: str) -> str:
     if re.search(r'\bsrc=["\'][^"\']*["\']', tag, flags=re.I):
@@ -104,7 +150,6 @@ def contextualize_images(text: str) -> str:
         if not alt_match:
             return tag
         alt = alt_match.group(1).lower()
-        # Project labels take priority and guarantee four distinct project images.
         for needle, src in PROJECT_BY_ALT.items():
             if needle in alt:
                 return set_src(tag, src)
@@ -117,66 +162,63 @@ def contextualize_images(text: str) -> str:
 
 for html in SITE.glob('*.html'):
     text = html.read_text(encoding='utf-8')
-
-    # Replace original local image names first.
     for old, new in LOCAL.items():
         text = text.replace(old, new)
 
-    # Remove every legacy external stock-image URL from earlier builds.
-    text = re.sub(r'https://images\.pexels\.com/photos/[^"\']+', 'assets/vietnam/hero.jpg', text)
-    text = re.sub(r'https://commons\.wikimedia\.org/[^"\']+', 'assets/vietnam/article-exhaust.jpg', text)
-    text = re.sub(r'https://images\.unsplash\.com/[^"\']+', 'assets/vietnam/hero.jpg', text)
-    text = re.sub(r'https://unsplash\.com/photos/[^"\']+', 'assets/vietnam/hero.jpg', text)
-
-    # Repair old builds where all project cards had been collapsed to hero.jpg.
+    # Purge every previous external image source, including the old borrowed Vietnam-company photos.
+    text = re.sub(r'https?://[^"\']+\.(?:jpg|jpeg|png|webp)(?:\?[^"\']*)?', 'assets/generated/hero.jpg', text, flags=re.I)
     text = contextualize_images(text)
 
     text = text.replace('Dự án tiêu biểu', 'Mô hình dự án')
-    text = text.replace('alt="Dự án bếp nhà hàng"', 'alt="Bếp nhà hàng thực tế tại Việt Nam"')
-    text = text.replace('alt="Dự án bếp khách sạn"', 'alt="Bếp khách sạn thực tế tại Việt Nam"')
-    text = text.replace('alt="Dự án bếp canteen"', 'alt="Bếp canteen thực tế tại Việt Nam"')
-    text = text.replace('alt="Dự án bếp trung tâm"', 'alt="Bếp trung tâm thực tế tại Việt Nam"')
+    text = text.replace('alt="Dự án bếp nhà hàng"', 'alt="Mô hình bếp nhà hàng"')
+    text = text.replace('alt="Dự án bếp khách sạn"', 'alt="Mô hình bếp khách sạn"')
+    text = text.replace('alt="Dự án bếp canteen"', 'alt="Mô hình bếp canteen"')
+    text = text.replace('alt="Dự án bếp trung tâm"', 'alt="Mô hình bếp trung tâm"')
+    text = text.replace('alt="Bếp nhà hàng thực tế tại Việt Nam"', 'alt="Mô hình bếp nhà hàng"')
+    text = text.replace('alt="Bếp khách sạn thực tế tại Việt Nam"', 'alt="Mô hình bếp khách sạn"')
+    text = text.replace('alt="Bếp canteen thực tế tại Việt Nam"', 'alt="Mô hình bếp canteen"')
+    text = text.replace('alt="Bếp trung tâm thực tế tại Việt Nam"', 'alt="Mô hình bếp trung tâm"')
 
     if 'fonts.googleapis.com' not in text:
-        text = text.replace('<link rel="stylesheet" href="styles.css">', FONT_LINKS + '<link rel="stylesheet" href="styles.css?v=10">')
-    text = text.replace('<script src="script.js"></script>', '<script src="script.js?v=10"></script>')
+        text = text.replace('<link rel="stylesheet" href="styles.css">', FONT_LINKS + '<link rel="stylesheet" href="styles.css?v=13">')
+    text = text.replace('<script src="script.js"></script>', '<script src="script.js?v=13"></script>')
     html.write_text(text, encoding='utf-8')
 
 css_path = SITE / 'styles.css'
 css = css_path.read_text(encoding='utf-8')
 for old, new in LOCAL.items():
     css = css.replace(old, new)
-css = re.sub(r'https://images\.pexels\.com/photos/[^"\')]+', 'assets/vietnam/hero.jpg', css)
-css = re.sub(r'https://images\.unsplash\.com/[^"\')]+', 'assets/vietnam/hero.jpg', css)
+css = re.sub(r'https?://[^"\')]+\.(?:jpg|jpeg|png|webp)(?:\?[^"\')]+)?', 'assets/generated/hero.jpg', css, flags=re.I)
 css += '''
 
-/* Vietnam-only real-photo refresh v10 */
+/* Generated visual system v13 — no borrowed project photography */
 body{font-family:"Be Vietnam Pro",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:400;letter-spacing:-.008em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 h1,h2,h3,h4,.hero-sub,.menu,.btn,.eyebrow,.stat b,.project-info strong,.article-hero h1{font-family:"Montserrat","Be Vietnam Pro",ui-sans-serif,system-ui,sans-serif}
 .hero h1,.page-hero h1,.article-hero h1{font-weight:900;letter-spacing:-.045em}
-.hero-bg{background-image:url("assets/vietnam/hero.jpg")!important;background-size:cover!important;background-position:center!important}
-.project-card img,.news-card img,.gallery-item img,.repair-photo img,.project-detail img,.about-split img,.article-figure img{filter:saturate(1.04) contrast(1.03);object-fit:cover}
+.hero-bg{background-image:url("assets/generated/hero.jpg")!important;background-size:cover!important;background-position:center!important}
+.project-card img,.news-card img,.gallery-item img,.repair-photo img,.project-detail img,.about-split img,.article-figure img{filter:saturate(1.02) contrast(1.03);object-fit:cover}
 '''
 css_path.write_text(css, encoding='utf-8')
 
 all_html = '\n'.join(p.read_text(encoding='utf-8') for p in SITE.glob('*.html'))
-for forbidden in ['images.pexels.com', 'images.unsplash.com', 'unsplash.com/photos/', 'commons.wikimedia.org']:
-    assert forbidden not in all_html, f'forbidden old image source remains: {forbidden}'
+for forbidden in [
+    'hayen.com.vn', 'daithuanphat.com.vn', 'obayashivn.com', 'haihunggroup.com',
+    'inoxquyenphat.com.vn', 'hstatic.net', 'shopify.com', 'meta.vn',
+    'images.pexels.com', 'images.unsplash.com', 'commons.wikimedia.org'
+]:
+    assert forbidden not in all_html, f'borrowed/external image source remains: {forbidden}'
 
-# Must have four distinct Vietnam project images wired into HTML.
-required_projects = [
-    'assets/vietnam/project-restaurant.jpg',
-    'assets/vietnam/project-hotel.jpg',
-    'assets/vietnam/project-canteen.jpg',
-    'assets/vietnam/project-central.png',
+required = [
+    'assets/generated/project-restaurant.jpg',
+    'assets/generated/project-hotel.jpg',
+    'assets/generated/project-canteen.jpg',
+    'assets/generated/project-central.jpg',
 ]
-for required in required_projects:
-    assert required in all_html, f'missing Vietnam project visual: {required}'
-assert len(set(required_projects)) == 4
+for item in required:
+    assert item in all_html, f'missing generated visual: {item}'
 
-# Every declared local image must exist and be non-trivial.
-for filename in SOURCES:
+for filename in GENERATED:
     target = ASSET_DIR / filename
-    assert target.exists() and target.stat().st_size >= 20_000, f'invalid image asset: {filename}'
+    assert target.exists() and target.stat().st_size >= 25_000, f'invalid generated asset: {filename}'
 
-print('Vietnam-only photography wired successfully; four project cards use four distinct images')
+print('Five new generated kitchen visuals wired successfully; zero borrowed project photography')
