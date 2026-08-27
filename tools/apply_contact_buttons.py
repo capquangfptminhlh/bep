@@ -6,7 +6,6 @@ PHONE_RAW = '0933078500'
 PHONE_DISPLAY = '093.307.8500'
 ZALO_URL = 'https://zalo.me/0933078500'
 # Official fanpage URL has not been verified from bepaau.com.vn yet.
-# Keep Facebook functionality explicit and non-deceptive: this opens a Facebook search for the exact brand.
 FACEBOOK_URL = 'https://www.facebook.com/search/top?q=B%E1%BA%BFp%20%C3%81%20%C3%82u'
 
 BUTTONS = f'''
@@ -21,28 +20,39 @@ BUTTONS = f'''
     <span class="contact-dock__icon">f</span><span class="contact-dock__label">Facebook</span>
   </a>
 </div>
+<a class="scroll-top-btn" href="#" aria-label="Lên đầu trang">↑</a>
 '''
 
 CSS = r'''
 
-/* Floating call / Zalo / Facebook contact dock */
-.contact-dock{position:fixed;right:18px;bottom:20px;z-index:1400;display:flex;flex-direction:column;gap:10px;align-items:flex-end}
-.contact-dock__item{display:flex;align-items:center;gap:10px;min-height:48px;padding:7px 10px 7px 7px;border-radius:999px;text-decoration:none;color:#fff;box-shadow:0 12px 34px rgba(0,0,0,.32);transition:transform .2s ease,filter .2s ease;background:#161616;border:1px solid rgba(255,255,255,.12)}
+/* Contact dock v2: no overlap with legacy floating actions */
+.contact-dock{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:92px;z-index:1400;display:flex;flex-direction:column;gap:9px;align-items:flex-end;pointer-events:none}
+.contact-dock__item{pointer-events:auto;display:flex;align-items:center;gap:9px;min-height:46px;padding:6px 11px 6px 6px;border-radius:999px;text-decoration:none;color:#fff;box-shadow:0 10px 28px rgba(0,0,0,.34);transition:transform .2s ease,filter .2s ease;background:#161616;border:1px solid rgba(255,255,255,.14)}
 .contact-dock__item:hover{transform:translateY(-2px);filter:brightness(1.08)}
-.contact-dock__icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:900;font-size:16px;background:rgba(255,255,255,.13)}
-.contact-dock__label{font-family:"Be Vietnam Pro",sans-serif;font-size:13px;font-weight:800;white-space:nowrap}
-.contact-dock__call{background:#d61f26}.contact-dock__zalo{background:#0068ff}.contact-dock__facebook{background:#1877f2}
-@media(max-width:760px){.contact-dock{right:12px;bottom:14px;gap:8px}.contact-dock__item{min-height:46px;padding:6px}.contact-dock__label{display:none}.contact-dock__icon{width:34px;height:34px}}
+.contact-dock__icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:900;font-size:15px;background:rgba(255,255,255,.13);flex:0 0 auto}
+.contact-dock__label{font-family:"Be Vietnam Pro",sans-serif;font-size:12px;font-weight:800;white-space:nowrap}
+.contact-dock__call{background:#d61f26}.contact-dock__zalo{background:#0868f7}.contact-dock__facebook{background:#1877f2}
+.scroll-top-btn{position:fixed;right:max(20px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));z-index:1400;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#c90f14;color:#fff;text-decoration:none;font-size:19px;font-weight:900;border:1px solid rgba(255,255,255,.18);box-shadow:0 10px 28px rgba(0,0,0,.32)}
+.scroll-top-btn:hover{transform:translateY(-2px);background:#e11b21}
+/* Kill the original duplicated floating-action system from the source package. */
+.float-actions{display:none!important}
+@media(max-width:1100px){.contact-dock__label{display:none}.contact-dock__item{padding:5px;min-height:44px}.contact-dock__icon{width:34px;height:34px}.contact-dock{right:max(12px,env(safe-area-inset-right));bottom:82px;gap:7px}.scroll-top-btn{right:max(13px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));width:42px;height:42px}}
+@media(max-width:640px){.contact-dock{bottom:78px}.contact-dock__item{min-height:42px}.contact-dock__icon{width:32px;height:32px;font-size:14px}.scroll-top-btn{width:40px;height:40px;font-size:17px}}
 '''
 
 pages = list(SITE.glob('*.html'))
 for html in pages:
     text = html.read_text(encoding='utf-8')
-    # Remove previous generated dock on repeated builds.
+
+    # Remove previous generated dock + generated scroll-to-top button on repeated builds.
     text = re.sub(r'<div class="contact-dock".*?</div>\s*</div>\s*</div>\s*</div>', '', text, flags=re.S)
+    text = re.sub(r'<a class="scroll-top-btn"[^>]*>.*?</a>', '', text, flags=re.S)
+
+    # Remove the legacy floating-action block entirely; it is the source of the duplicate red phone/arrow.
+    text = re.sub(r'<div class="float-actions"[^>]*>.*?</div>', '', text, flags=re.S)
+
     # Normalize every click-to-call link to the canonical hotline.
     text = re.sub(r'href="tel:[^"]+"', f'href="tel:{PHONE_RAW}"', text)
-    # Normalize known legacy visible hotline variants only.
     for pattern in [
         r'0822\s*122\s*248', r'0822122248',
         r'0832\s*122\s*208', r'0832122208',
@@ -52,20 +62,24 @@ for html in pages:
         r'0962\s*554\s*955', r'0962554955',
     ]:
         text = re.sub(pattern, PHONE_DISPLAY, text)
+
     text = text.replace('</body>', BUTTONS + '\n</body>', 1)
     html.write_text(text, encoding='utf-8')
 
 css_path = SITE / 'styles.css'
 css = css_path.read_text(encoding='utf-8')
 css = re.sub(r'/\* Floating call / Zalo / Facebook contact dock \*/.*?(?=\n/\*|\Z)', '', css, flags=re.S)
+css = re.sub(r'/\* Contact dock v2: no overlap with legacy floating actions \*/.*?(?=\n/\*|\Z)', '', css, flags=re.S)
 css += CSS
 css_path.write_text(css, encoding='utf-8')
 
 all_html = '\n'.join(p.read_text(encoding='utf-8') for p in pages)
 assert all_html.count('class="contact-dock"') == len(pages)
+assert all_html.count('class="scroll-top-btn"') == len(pages)
+assert 'class="float-actions"' not in all_html
 assert f'tel:{PHONE_RAW}' in all_html
 assert ZALO_URL in all_html
 assert FACEBOOK_URL in all_html
 assert '0822 122 248' not in all_html
 assert '0904 603 688' not in all_html
-print('Canonical hotline + Call/Zalo/Facebook dock applied to', len(pages), 'pages')
+print('Contact dock fixed: one Call/Zalo/Facebook stack plus one separate scroll-to-top button on', len(pages), 'pages')
