@@ -51,7 +51,7 @@ jobs:
           test -f _site/script.js
           test -f _site/assets/logo.svg
 
-      - name: Apply Vietnam-only real photography
+      - name: Generate fresh website-only kitchen visuals
         run: python tools/apply_visuals.py
 
       - name: Apply exact bepaau.com.vn contact information
@@ -77,6 +77,7 @@ jobs:
           html = '\n'.join(p.read_text(encoding='utf-8') for p in pages)
           css = Path('_site/styles.css').read_text(encoding='utf-8')
           index = Path('_site/index.html').read_text(encoding='utf-8')
+
           required = [
             'Bếp Á - Âu',
             '0340890521',
@@ -95,13 +96,14 @@ jobs:
             'verified-company-schema',
             'class="language-switcher"',
             'translate.google.com/translate?sl=vi&tl=en',
-            'assets/vietnam/project-restaurant.jpg',
-            'assets/vietnam/project-hotel.jpg',
-            'assets/vietnam/project-canteen.jpg',
-            'assets/vietnam/project-central.png',
+            'assets/generated/project-restaurant.jpg',
+            'assets/generated/project-hotel.jpg',
+            'assets/generated/project-canteen.jpg',
+            'assets/generated/project-central.jpg',
           ]
           for value in required:
               assert value in html, f'missing required preview content: {value}'
+
           forbidden = [
             '0106163396', 'info@bepaau.com.vn',
             'Thôn 7, Đình Vĩ, xã Hoài Đức, Hà Nội',
@@ -110,20 +112,27 @@ jobs:
             '0822 122 248', '0832 122 208', '0902 122 208',
             '46B, Đường Số 6, Phường Tân Sơn Nhì, TP.Hồ Chí Minh',
             'images.pexels.com', 'images.unsplash.com', 'unsplash.com/photos/', 'commons.wikimedia.org',
+            'hayen.com.vn', 'daithuanphat.com.vn', 'obayashivn.com', 'haihunggroup.com',
+            'inoxquyenphat.com.vn', 'hstatic.net', 'shopify.com', 'meta.vn',
           ]
           for value in forbidden:
               assert value not in html, f'forbidden/old content still present: {value}'
-          vn_assets = list(Path('_site/assets/vietnam').glob('*'))
-          assert len(vn_assets) >= 12, f'expected >=12 Vietnam image assets, got {len(vn_assets)}'
+
+          generated_assets = list(Path('_site/assets/generated').glob('*.jpg'))
+          assert len(generated_assets) == 5, f'expected exactly 5 generated images, got {len(generated_assets)}'
+          for asset in generated_assets:
+              assert asset.stat().st_size > 25000, f'generated image too small: {asset}'
+
           assert html.count('class="language-switcher"') == len(pages)
           assert html.count('class="contact-dock"') == len(pages)
-          hero = Path('_site/assets/vietnam/project-hotel.jpg')
-          assert hero.exists() and hero.stat().st_size > 20000
+          hero = Path('_site/assets/generated/hero.jpg')
+          assert hero.exists() and hero.stat().st_size > 25000
           assert 'hero-title-main' in index and 'mobile-title-break' in index
-          assert 'assets/vietnam/project-hotel.jpg' in css and 'Mobile hero refresh v12' in css
+          assert 'assets/generated/hero.jpg' in css and 'Mobile hero refresh v13' in css
+
           print('Pages:', len(pages))
-          print('Vietnam image assets:', len(vn_assets))
-          print('Mobile typography + clean Vietnam hero + contacts + VI/EN: PASS')
+          print('Generated website-only image assets:', len(generated_assets))
+          print('Generated-only imagery + mobile typography + contacts + VI/EN: PASS')
           PY
 
       - name: Setup Pages
