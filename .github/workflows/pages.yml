@@ -66,6 +66,9 @@ jobs:
       - name: Refresh mobile hero typography and image
         run: python tools/apply_mobile_refresh.py
 
+      - name: Remove legacy image-source links
+        run: python tools/cleanup_legacy_image_links.py
+
       - name: Verify preview content
         shell: bash
         run: |
