@@ -32,7 +32,6 @@ jobs:
           test -s site-source.part-01
           for f in site-source.repair-02a site-source.repair-02b site-source.repair-02c site-source.repair-03a site-source.repair-03b site-source.repair-03c site-source.repair-04a site-source.repair-04b site-source.repair-04c; do test -s "$f"; done
           for n in 05 06 07 08; do test -s "site-source.part-${n}"; done
-
           cat \
             site-source.part-00 \
             site-source.part-01 \
@@ -41,11 +40,9 @@ jobs:
             site-source.repair-04a site-source.repair-04b site-source.repair-04c \
             site-source.part-05 site-source.part-06 site-source.part-07 site-source.part-08 \
             > site-source.b64
-
           echo "b7557f8a473b070116a791b9977e5ee8e010efc5fe959fb29020992ccb99fa62  site-source.b64" | sha256sum -c -
           base64 --decode site-source.b64 > site-source.zip
           echo "2a160a217da58386fbe6276d162982c77217d409006504a43d13f705355a2ed8  site-source.zip" | sha256sum -c -
-
           rm -rf _site
           mkdir -p _site
           unzip -q site-source.zip -d _site
@@ -66,6 +63,9 @@ jobs:
       - name: Sync hotline and add Call Zalo Facebook buttons
         run: python tools/apply_contact_buttons.py
 
+      - name: Refresh mobile hero typography and image
+        run: python tools/apply_mobile_refresh.py
+
       - name: Verify preview content
         shell: bash
         run: |
@@ -75,7 +75,8 @@ jobs:
           pages = list(Path('_site').glob('*.html'))
           assert len(pages) >= 10, f'expected >=10 HTML pages, got {len(pages)}'
           html = '\n'.join(p.read_text(encoding='utf-8') for p in pages)
-
+          css = Path('_site/styles.css').read_text(encoding='utf-8')
+          index = Path('_site/index.html').read_text(encoding='utf-8')
           required = [
             'Bếp Á - Âu',
             '0340890521',
@@ -101,7 +102,6 @@ jobs:
           ]
           for value in required:
               assert value in html, f'missing required preview content: {value}'
-
           forbidden = [
             '0106163396', 'info@bepaau.com.vn',
             'Thôn 7, Đình Vĩ, xã Hoài Đức, Hà Nội',
@@ -113,14 +113,17 @@ jobs:
           ]
           for value in forbidden:
               assert value not in html, f'forbidden/old content still present: {value}'
-
           vn_assets = list(Path('_site/assets/vietnam').glob('*'))
           assert len(vn_assets) >= 12, f'expected >=12 Vietnam image assets, got {len(vn_assets)}'
           assert html.count('class="language-switcher"') == len(pages)
           assert html.count('class="contact-dock"') == len(pages)
+          hero = Path('_site/assets/hero-kitchen-clean.webp')
+          assert hero.exists() and hero.stat().st_size > 12000
+          assert 'hero-title-main' in index and 'mobile-title-break' in index
+          assert 'hero-kitchen-clean.webp' in css and 'Mobile hero refresh v11' in css
           print('Pages:', len(pages))
           print('Vietnam image assets:', len(vn_assets))
-          print('Vietnam-only imagery + exact contact + VI/EN + contact buttons: PASS')
+          print('Mobile typography + new hero + contacts + VI/EN: PASS')
           PY
 
       - name: Setup Pages
