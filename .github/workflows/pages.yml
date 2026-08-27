@@ -69,6 +69,9 @@ jobs:
       - name: Remove legacy image-source links
         run: python tools/cleanup_legacy_image_links.py
 
+      - name: Fix desktop hero clipping and overlap
+        run: python tools/apply_desktop_layout_fix.py
+
       - name: Verify preview content
         shell: bash
         run: |
@@ -132,10 +135,13 @@ jobs:
           assert hero.exists() and hero.stat().st_size > 25000
           assert 'hero-title-main' in index and 'mobile-title-break' in index
           assert 'assets/generated/hero.jpg' in css and 'Mobile hero refresh v13' in css
+          assert 'Desktop hero layout fix v14' in css
+          assert '@media (min-width:981px) and (max-height:900px)' in css
+          assert '.hero-copy{padding:52px 0 190px' in css
 
           print('Pages:', len(pages))
           print('Generated website-only image assets:', len(generated_assets))
-          print('Generated-only imagery + mobile typography + contacts + VI/EN: PASS')
+          print('Generated imagery + responsive hero + contacts + VI/EN: PASS')
           PY
 
       - name: Setup Pages
