@@ -117,13 +117,13 @@ jobs:
           assert len(vn_assets) >= 12, f'expected >=12 Vietnam image assets, got {len(vn_assets)}'
           assert html.count('class="language-switcher"') == len(pages)
           assert html.count('class="contact-dock"') == len(pages)
-          hero = Path('_site/assets/hero-kitchen-clean.webp')
-          assert hero.exists() and hero.stat().st_size > 12000
+          hero = Path('_site/assets/vietnam/project-hotel.jpg')
+          assert hero.exists() and hero.stat().st_size > 20000
           assert 'hero-title-main' in index and 'mobile-title-break' in index
-          assert 'hero-kitchen-clean.webp' in css and 'Mobile hero refresh v11' in css
+          assert 'assets/vietnam/project-hotel.jpg' in css and 'Mobile hero refresh v12' in css
           print('Pages:', len(pages))
           print('Vietnam image assets:', len(vn_assets))
-          print('Mobile typography + new hero + contacts + VI/EN: PASS')
+          print('Mobile typography + clean Vietnam hero + contacts + VI/EN: PASS')
           PY
 
       - name: Setup Pages
