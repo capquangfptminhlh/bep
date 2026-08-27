@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 
 SITE = Path('_site')
-HERO_ASSET = 'assets/vietnam/project-hotel.jpg'
+HERO_ASSET = 'assets/generated/hero.jpg'
 
 for html in SITE.glob('*.html'):
     text = html.read_text(encoding='utf-8')
@@ -15,9 +15,9 @@ for html in SITE.glob('*.html'):
 
 css_path = SITE / 'styles.css'
 css = css_path.read_text(encoding='utf-8')
-css = re.sub(r'/\* Mobile hero refresh v1[12] \*/.*?(?=\n/\*|\Z)', '', css, flags=re.S)
+css = re.sub(r'/\* Mobile hero refresh v1[123] \*/.*?(?=\n/\*|\Z)', '', css, flags=re.S)
 css += f'''
-/* Mobile hero refresh v12 */
+/* Mobile hero refresh v13 */
 .hero-bg{{background-image:url("{HERO_ASSET}")!important;background-position:64% center!important;background-size:cover!important}}
 .hero h1 .hero-title-main{{display:block;color:#fff}}.hero h1 .hero-title-accent{{display:block;color:var(--red2)}}.mobile-title-break{{display:none}}
 @media(max-width:640px){{
@@ -34,7 +34,7 @@ css_path.write_text(css, encoding='utf-8')
 
 index = (SITE / 'index.html').read_text(encoding='utf-8')
 hero = SITE / HERO_ASSET
-assert hero.exists() and hero.stat().st_size > 20000
+assert hero.exists() and hero.stat().st_size > 25000
 assert 'hero-title-main' in index and 'mobile-title-break' in index
-assert HERO_ASSET in css and 'Mobile hero refresh v12' in css
-print('Mobile typography fixed and clean Vietnam kitchen hero applied')
+assert HERO_ASSET in css and 'Mobile hero refresh v13' in css
+print('Mobile typography fixed and newly generated kitchen hero applied')
